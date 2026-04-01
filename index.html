@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Purchase Order Dashboard | Analytics</title>
+  <!-- Font Awesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+  <!-- External Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- External CSS -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<div class="dashboard-header glass-card">
+  <div class="logo-area">
+    <div class="logo-icon"><i class="fas fa-chart-line"></i></div>
+    <div>
+      <div class="title-main">Purchase Order Dashboard</div>
+      <div class="dashboard-sub">intelligent procurement analytics</div>
+    </div>
+    <div id="customerCount" class="customer-badge"><i class="fas fa-building"></i> <span id="customerCountSpan">0</span> customers</div>
+  </div>
+  
+  <div class="filter-wrapper">
+    <i class="fas fa-calendar-alt filter-icon"></i>
+    <div class="year-select-container">
+      <div class="year-select-trigger" id="yearTrigger">
+        <span id="selectedYearsText">Financial Years</span>
+        <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="year-dropdown" id="yearDropdown"></div>
+    </div>
+    <button class="clear-years-btn" id="clearYearsBtn"><i class="fas fa-undo-alt"></i> Reset</button>
+  </div>
+</div>
+
+<!-- KPI CARDS -->
+<div class="kpi-grid">
+  <div class="kpi-card"><div class="kpi-label"><i class="fas fa-rupee-sign" style="color:#60a5fa;"></i> TOTAL PO VALUE</div><div class="kpi-value" id="totalPO">₹0</div><div class="kpi-sub">gross order value</div></div>
+  <div class="kpi-card"><div class="kpi-label"><i class="fas fa-shopping-cart" style="color:#34d399;"></i> TOTAL ORDERS</div><div class="kpi-value" id="totalOrders">0</div><div class="kpi-sub">purchase transactions</div></div>
+  <div class="kpi-card"><div class="kpi-label"><i class="fas fa-chart-simple" style="color:#f472b6;"></i> AVG. ORDER VALUE</div><div class="kpi-value" id="avgPO">₹0</div><div class="kpi-sub">per PO</div></div>
+  <div class="kpi-card"><div class="kpi-label"><i class="fas fa-crown" style="color:#fbbf24;"></i> TOP CUSTOMER</div><div class="kpi-value" id="topCustomer">—</div><div class="kpi-sub">highest spend</div></div>
+  <div class="kpi-card"><div class="kpi-label"><i class="fas fa-location-dot" style="color:#60a5fa;"></i> TOP OFFICE</div><div class="kpi-value" id="topOffice">—</div><div class="kpi-sub">by total value</div></div>
+  <div class="kpi-card"><div class="kpi-label"><i class="fas fa-user-tie" style="color:#c084fc;"></i> TOP MANAGER</div><div class="kpi-value" id="topManager">—</div><div class="kpi-sub">procurement leader</div></div>
+</div>
+
+<!-- TABS -->
+<div class="nav-tabs">
+  <button class="tab-btn active" data-view="overview"><i class="fas fa-chart-column"></i> Overview (FY)</button>
+  <button class="tab-btn" data-view="office"><i class="fas fa-building"></i> By Office</button>
+  <button class="tab-btn" data-view="manager"><i class="fas fa-user-check"></i> By Manager</button>
+  <button class="tab-btn" data-view="customer"><i class="fas fa-users"></i> By Customer</button>
+  <button class="tab-btn" data-view="type"><i class="fas fa-tag"></i> Order Type</button>
+</div>
+
+<!-- Metric toggle -->
+<div class="metric-switch">
+  <div style="font-size:13px; color:#a78bfa;"><i class="fas fa-chart-pie"></i> Main chart metric:</div>
+  <div class="toggle-group">
+    <span class="toggle-option active-metric" data-metric="value"><i class="fas fa-coins"></i> PO Value (₹)</span>
+    <span class="toggle-option" data-metric="count"><i class="fas fa-hashtag"></i> Order Count</span>
+  </div>
+</div>
+
+<!-- Chart section with main graph + 3 mini charts -->
+<div class="chart-section">
+  <div class="upload-bar">
+    <label for="excelUpload" class="upload-btn-modern">
+      <i class="fas fa-cloud-upload-alt"></i> Upload Excel / XLSX
+      <i class="fas fa-file-excel" style="color:#2ecc71;"></i>
+    </label>
+    <input type="file" id="excelUpload" accept=".xlsx, .xls, .csv" style="display:none;">
+    <div id="uploadStatus" class="file-status"><i class="fas fa-info-circle"></i> Ready — upload PO data</div>
+  </div>
+  
+  <!-- Main Chart -->
+  <div class="chart-glass main-chart">
+    <canvas id="masterChart"></canvas>
+  </div>
+  
+  <!-- Three Mini Charts Grid -->
+  <div class="mini-charts-grid">
+    <!-- Top 5 Customers Bar Chart -->
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">
+        <i class="fas fa-trophy" style="color:#fbbf24;"></i> Top 5 Customers
+      </div>
+      <div class="mini-chart-container">
+        <canvas id="topCustomersChart" class="mini-canvas"></canvas>
+      </div>
+    </div>
+    
+    <!-- Top 5 Offices Bar Chart -->
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">
+        <i class="fas fa-building" style="color:#60a5fa;"></i> Top 5 Offices
+      </div>
+      <div class="mini-chart-container">
+        <canvas id="topOfficesChart" class="mini-canvas"></canvas>
+      </div>
+    </div>
+    
+    <!-- Order Type Pie Chart -->
+    <div class="mini-chart-card">
+      <div class="mini-chart-title">
+        <i class="fas fa-chart-pie" style="color:#ec489a;"></i> Order Type Distribution
+      </div>
+      <div class="mini-chart-container">
+        <canvas id="orderTypeChart" class="mini-canvas"></canvas>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Customer Search Section -->
+  <div class="customer-search-section">
+    <div class="search-header">
+      <i class="fas fa-search" style="color:#8b5cf6;"></i>
+      <h3>Customer Performance Analysis</h3>
+    </div>
+    <div class="search-bar-container">
+      <div class="search-input-wrapper">
+        <i class="fas fa-user"></i>
+        <input type="text" id="customerSearchInput" placeholder="Enter customer name to view yearly performance..." autocomplete="off">
+        <button id="searchCustomerBtn" class="search-btn">
+          <i class="fas fa-chart-line"></i> Analyze
+        </button>
+      </div>
+      <button id="clearSearchBtn" class="clear-search-btn" style="display: none;">
+        <i class="fas fa-times"></i> Clear
+      </button>
+    </div>
+    <div id="searchResultInfo" class="search-result-info"></div>
+    <div class="customer-chart-container" id="customerChartContainer" style="display: none;">
+      <div class="customer-chart-card">
+        <div class="customer-chart-title" id="customerChartTitle">
+          <i class="fas fa-chart-bar"></i> Customer Performance
+        </div>
+        <div class="customer-chart-wrapper">
+          <canvas id="customerYearlyChart"></canvas>
+        </div>
+        <div id="customerStats" class="customer-stats"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">
+  <span><i class="fas fa-chart-line" style="color:#60a5fa;"></i> Dynamic segmentation</span>
+  <span><i class="fas fa-filter" style="color:#c084fc;"></i> Multi-year filter</span>
+  <span><i class="fas fa-search" style="color:#f472b6;"></i> Customer search</span>
+</div>
+
+<!-- External JavaScript -->
+<script src="dashboard.js"></script>
+</body>
+</html>
